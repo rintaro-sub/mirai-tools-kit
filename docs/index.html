@@ -33,9 +33,9 @@ function seed(){
  const members=[['m1','佐藤 葵','部門長'],['m2','高橋 蓮','副部門長'],['m3','鈴木 美咲',''],['m4','田中 悠',''],['m5','伊藤 凛',''],['m6','渡辺 陽',''],['m7','山本 楓',''],['m8','中村 碧','']].map(([id,name,role])=>({id,name,role}));
  const projects=[['p1','通学費支援','制度設計',70,at(45)],['p2','学食アレルギー','実態調査',55,at(14)],['p3','相談窓口','運用設計',40,at(12)],['p4','施設利用時間','要望整理',80,at(30)],['p5','新入生アンケート','設問設計',65,at(25)]].map(([id,name,phase,progress,target])=>({id,name,phase,progress,target,started:at(-35)}));
  const titles=[['他大学の補助制度を比較','通学費の試算表を更新','支援対象の条件を整理','学生課への提案書を作成','ヒアリング記録を共有','予算上限の根拠を確認'],['表示方法の事例を収集','食堂担当者にヒアリング','アレルゲン一覧を照合','当事者アンケートを集計','メニュー表示案を作成','調査結果をレビュー'],['既存窓口の導線を整理','相談対応フローを作成','匿名相談の運用を検討','担当部署に確認依頼','FAQの初稿を作成','相談事例の分類を整理'],['利用時間の現状を調査','学生の利用要望を集計','施設担当者へ質問を送付','延長案の費用を試算','要望書の初稿を作成','会議室の利用率を整理'],['設問案を作成','回答フォームを確認','個人情報の設問を点検','配布スケジュールを調整','広報文面を作成','試行回答の結果を反映']];
- const tasks=titles.flatMap((names,p)=>names.map((title,i)=>{const done=i<2;return {id:`t${p*6+i}`,projectId:`p${p+1}`,assignee:`m${(p*2+i)%7+1}`,title,status:done?'done':i<4?'doing':'todo',created:at(i===5?2:-9+p),due:at(done?i:((p+i)%9)-2),completed:done?at(p===0?-3:i+p%3):null}}));
+ const tasks=titles.flatMap((names,p)=>names.map((title,i)=>{const done=i<2;return {id:`t${p*6+i}`,projectId:`p${p+1}`,assignee:`m${(p*2+i)%7+1}`,title,status:done?'done':i<4?'doing':'todo',created:at(i===5?2:-9+p),due:at(done?i:(8+((p*6+i)%6))),completed:done?at(p===0?-3:i+p%3):null}}));
  const meetings=[];[-1,0,1].forEach(w=>{[0,2,4,5].forEach((d,i)=>meetings.push({id:`mt${w+1}-${i}`,date:at(w*7+d),time:['18:00','17:30','18:30','10:00'][i],projectId:`p${(i+(w===1?1:0))%5+1}`,attendees:i===3?8:4+i,agenda:w===1?i===0||i===2:true,materials:w===1?i===0||i===3:true,homework:w===1?[0,2,1,0][i]:0,minutesAt:w<1&&i<3?at(w*7+d):null}));});
- return {version:1,base,members,projects,tasks,meetings};
+ const late=tasks.filter(t=>t.assignee==='m6'&&!t.completed).slice(0,2);late.forEach((t,i)=>t.due=at(-1-i*2));return {version:1,base,members,projects,tasks,meetings};
 }
 function valid(d){return d&&d.version===1&&typeof d.base==='string'&&['members','projects','tasks','meetings'].every(k=>Array.isArray(d[k]))&&d.members.length>0&&d.members.every(m=>typeof m.id==='string'&&typeof m.name==='string')&&d.projects.every(p=>typeof p.name==='string'&&Number.isFinite(p.progress)&&typeof p.target==='string'&&typeof p.started==='string')&&d.tasks.every(t=>typeof t.title==='string'&&typeof t.due==='string'&&typeof t.created==='string'&&['todo','doing','done'].includes(t.status)&&d.projects.some(p=>p.id===t.projectId)&&d.members.some(m=>m.id===t.assignee))&&d.meetings.every(m=>typeof m.date==='string'&&typeof m.time==='string'&&Number.isFinite(m.attendees)&&Number.isFinite(m.homework)&&d.projects.some(p=>p.id===m.projectId))}
 let data;try{const raw=localStorage.getItem(KEY);if(raw){data=JSON.parse(raw);if(!valid(data))throw Error('invalid')}else{data=seed();localStorage.setItem(KEY,JSON.stringify(data))}}catch(e){data=seed();$('storage-note').textContent='保存データを読み書きできないため、一時サンプルで表示しています。既存の保存データは上書きしません。'}
@@ -43,7 +43,7 @@ let week=monday(today),toastTimer;
 const inWeek=(s,w)=>s&&s>=w&&s<=add(w,6);
 const cutoff=()=>week===monday(today)?today:add(week,6);
 const isDone=t=>t.status==='done'&&t.completed&&t.completed<=cutoff();
-const activeTask=t=>t.created<=add(week,6)&&(inWeek(t.due,week)||(t.due<week&&!isDone(t)));
+const activeTask=t=>t.created<=add(week,6)&&(inWeek(t.due,week)||(t.due<week&&!isDone(t))||(t.due>add(week,6)&&t.due<=add(week,13)&&!isDone(t)));
 const overdue=t=>!isDone(t)&&t.due<cutoff();
 const projectName=id=>data.projects.find(p=>p.id===id).name;
 function stats(w){return [data.meetings.filter(m=>inWeek(m.date,w)).length,data.meetings.filter(m=>inWeek(m.minutesAt,w)).length,data.tasks.filter(t=>inWeek(t.completed,w)).length,data.tasks.filter(t=>inWeek(t.created,w)).length]}
