@@ -1,23 +1,97 @@
 (() => {
-  'use strict';
-  const tools = [
-    ['policy','政策立案ツール'],
-    ['kikaku','企画ツール'],
-    ['koho','広報ツール'],
-    ['engineer','エンジニアツール'],
-    ['jimu','事務局ツール'],
-    ['yakuin','役員会ツール'],
-  ];
-  const app = document.getElementById('app');
-  const h = (t, attrs, ...kids) => {
-    const el = document.createElement(t);
-    for (const [k,v] of Object.entries(attrs || {})) {
-      if (v == null || v === false) continue;
-      if (k === 'class') el.className = v; else el.setAttribute(k, v === true ? '' : v);
-    }
-    kids.flat(Infinity).forEach(k => el.append(k.nodeType ? k : document.createTextNode(String(k))));
-    return el;
-  };
-  const cards = tools.map(([slug,title]) => h('a', {class:'list-row', href:`./${slug}.html`, style:'text-decoration:none;color:inherit'}, h('div',{class:'grow'}, h('b',null,title), h('div',{class:'small muted'},'静的版の画面骨格')), h('span',{class:'chip'},'open')));
-  app.append(h('div',{class:'card'}, cards));
+'use strict';
+const departments = [
+ ['policy','政策立案','◇','#d9fff1','声を集めて、政策の一歩へ。','定例・議題・進捗をまとめる'],
+ ['kikaku','企画','⚑','#fff0cf','アイデアを、次のイベントに。','企画・イベントの進行管理'],
+ ['koho','広報','↗','#f0e8ff','チームの活動を、外へ届ける。','発信・募集・承認フロー'],
+ ['engineer','エンジニア','⌘','#e0edff','つくる人の、共通の作業場。','プロダクト・課題・タスク'],
+ ['jimu','事務局','▤','#ffe6df','運営の「どこだっけ」を解決。','文書・ルール・メンバー対応'],
+ ['yakuin','役員会','◎','#e2f4de','対話を、チームの次の行動に。','面談・議事録・タスク化']
+];
+const page = document.body.dataset.page, dept=departments.find(d=>d[0]===page);
+const $ = s=>document.querySelector(s);
+const esc = v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let storageError=false;
+function read(key,fallback){try{const v=JSON.parse(localStorage.getItem('mirai.portal.'+key));return v??fallback;}catch{storageError=true;return fallback;}}
+function write(key,v){try{localStorage.setItem('mirai.portal.'+key,JSON.stringify(v));return true;}catch{toast('保存できませんでした。ブラウザの保存設定を確認してください。',true);return false;}}
+function toast(msg,error=false){const el=document.createElement('div');el.className='toast'+(error?' err':'');el.textContent=msg;$('#toasts').append(el);setTimeout(()=>el.remove(),4200);}
+const link=(slug,text,cls='btn')=>`<a class="${cls}" href="./${slug}.html">${text}</a>`;
+const chip=(text,cls='')=>`<span class="chip ${cls}">${esc(text)}</span>`;
+const date=new Date();const displayDate=new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'long'}).format(date);
+const recent=read('recent',[]);const validRecent=Array.isArray(recent)?recent.filter(s=>departments.some(d=>d[0]===s)):[];
+if(dept)write('recent',[page,...validRecent.filter(s=>s!==page)].slice(0,4));
+$('#app').innerHTML=`<div class="shell"><aside class="sidebar"><a class="brand" href="./index.html"><i aria-hidden="true"></i><span>Mirai Tools<small>STUDENT TEAM</small></span></a><div><div class="nav-label">WORKSPACE / 運営</div><nav class="nav" aria-label="部門ナビゲーション"><a href="./index.html" ${page==='index'?'class="active" aria-current="page"':''}><span class="nav-symbol">▦</span>ポータル</a>${departments.map(d=>`<a href="./${d[0]}.html" ${page===d[0]?'class="active" aria-current="page"':''}><span class="nav-symbol">${d[2]}</span>${d[1]}</a>`).join('')}</nav></div><div class="side-note"><b>小さな一歩を、みんなで。</b>学生チームの活動をつなぐ<br>運営のためのワークスペース。<hr><span class="muted">◉ プロトタイプ / サンプルデータ<br>保存先：このブラウザのみ</span></div></aside><div class="workspace"><header class="workspace-head"><span><span class="muted">運営ワークスペース</span>　/　${dept?dept[1]:'ポータル'}</span><div class="row"><span class="chip gray">PROTOTYPE</span><span class="avatar" aria-label="運営チーム">運</span></div></header><main id="main" class="main"><div class="page-heading"><div><div class="eyebrow">${dept?'TEAM WORKSPACE':'YOUR TEAM, CONNECTED'}</div><h1>${dept?dept[1]+'ツール':'おつかれさまです、運営チーム。'}</h1><p>${dept?dept[4]:'今日の活動も、ここからはじめよう。'}</p></div>${dept?link('index','← ポータルへ'): `<span class="small muted">${displayDate}</span>`}</div><div id="content"></div><footer class="footer"><span>Mirai Tools Portal / 学生チーム【運営】</span><span>架空のデータによるプロトタイプ · 外部への送信はありません</span></footer></main></div></div>`;
+if(storageError)$('#content').insertAdjacentHTML('beforebegin','<div class="banner storage-warning">保存データを読み込めませんでした。サンプルで表示しています。</div>');
+function portal(){
+ $('#content').innerHTML=`<section class="portal-hero"><div><span class="chip" style="background:white;border:1px solid">HELLO, MIRAI TEAM!</span><h2>それぞれの活動を、<br>ひとつの場所から。</h2><p>議題を持ち寄る。企画を育てる。チームの今を知る。<br>あなたの「次にやること」へ、すぐにアクセス。</p><a class="btn" href="#tools" style="margin-top:20px">部門のツールをひらく　↘</a></div><div class="hero-art" aria-hidden="true"><div class="art-window"><strong>Let's<br>make it.</strong></div><span class="art-star">✦</span></div></section><div class="dashboard-top"><section class="card"><div class="section-head"><h2>お知らせ <span class="count">TEAM UPDATES</span></h2>${chip('3件','gray')}</div><div class="news-row"><time>11.07</time>${link('jimu','運営ガイドラインの改定案を公開しました','')}${chip('確認')}</div><div class="news-row"><time>11.06</time>${link('koho','11月のnoteテーマ、アイデアを募集中です','')}${chip('募集中','warn')}</div><div class="news-row"><time>11.05</time>${link('kikaku','冬の交流会：企画メンバーを募集します','')}${chip('企画','gray')}</div></section><section class="card meeting"><div class="section-head"><h2>今日のMTG</h2>${chip('サンプル日程','gray')}</div><div class="meeting-time">20:00 <small>— 21:00 / オンライン</small></div><h3>運営チーム 全体定例</h3><p class="small muted">部門の進捗共有・冬の交流会について</p><div class="meeting-bottom"><div class="avatars" aria-label="参加予定：各部門代表"><span>政</span><span>企</span><span>広</span><span>+3</span></div><button class="primary" data-action="meeting">議題を確認　→</button></div></section></div><section id="tools"><div class="section-head"><h2>部門のツール <span class="count">6 WORKSPACES</span></h2><span class="small muted">必要な場所へ、ワンクリック。</span></div><div class="tool-grid">${departments.map(d=>`<a class="tool-card" href="./${d[0]}.html" style="--accent:${d[3]}"><span class="tool-icon" aria-hidden="true">${d[2]}</span><h3>${d[1]}ツール</h3><p>${d[4]}</p><div class="tool-foot"><span>${d[5]}</span><span class="arrow">↗</span></div></a>`).join('')}</div></section><section class="recent"><div class="section-head"><h2>最近アクセス</h2></div>${validRecent.length?`<div class="recent-links">${validRecent.map(s=>link(s,departments.find(d=>d[0]===s)[1]+'　↗','')).join('')}</div>`:'<div class="empty card"><strong>最初のツールをひらいてみましょう</strong>アクセスした部門が、ここに最大4件表示されます。</div>'}</section>`;
+}
+const tabs={policy:['定例','議題','進捗','議事録'],kikaku:['企画一覧'],koho:['週次報告','noteテーマ募集','お助け募集','学生チーム通信','外部公開'],engineer:['プロダクト','課題','タスク','議事録'],jimu:['文書検索','休会者通知','ルール集','FAQ'],yakuin:['面談・役員会','タスク']};
+let active=0,loadId=0;
+function tool(){ $('#content').innerHTML=`<div class="tabbar" role="tablist" aria-label="${dept[1]}メニュー">${tabs[page].map((t,i)=>`<button role="tab" id="tab-${i}" aria-controls="panel" aria-selected="${i===active}" tabindex="${i===active?0:-1}" data-tab="${i}">${t}</button>`).join('')}</div><section id="panel" role="tabpanel" aria-labelledby="tab-${active}"></section>`;renderPanel();}
+function switchTab(i){loadId++;active=i;tool();$(`#tab-${i}`).focus();}
+function rows(items){return items.map((x,i)=>`<div class="agenda"><span class="number">${String(i+1).padStart(2,'0')}</span><div class="grow"><b>${esc(x[0])}</b><p>${esc(x[1])}</p></div>${chip(x[2]||'確認中',i===0?'':'gray')}</div>`).join('');}
+function metrics(a){return `<div class="metric-row">${a.map(x=>`<div class="metric"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div>`;}
+function editor(title,key,initial){return `<div class="card"><div class="section-head"><h2>${title}</h2>${chip('編集できます','gray')}</div><p class="small muted">決定事項と、次のアクションを残しましょう。</p><label for="memo" class="f">議事録メモ</label><textarea id="memo" class="editor">${esc(read(key,initial))}</textarea><div class="save-row"><span class="savestate">このブラウザに保存されます</span><button class="primary" data-save="${key}">メモを保存</button></div></div>`;}
+let projects=read('projects',null);if(!Array.isArray(projects))projects=[{id:'p1',title:'冬の学生チーム交流会',owner:'企画担当A',date:'2026-12-12',status:'進行中',memo:'会場候補を3件比較。次回定例で予算を相談。'},{id:'p2',title:'新メンバー向けオリエンテーション',owner:'企画担当B',date:'2026-11-21',status:'確認待ち',memo:'当日の進行台本を広報チームと確認する。'},{id:'p3',title:'政策を知るランチトーク',owner:'政策担当A',date:'2026-12-05',status:'アイデア',memo:'初参加の人も話しやすい少人数形式を検討。'}];
+function projectTable(query=''){const list=projects.filter(p=>[p.title,p.owner,p.memo].join(' ').includes(query));return list.length?`<div class="table-wrap"><table><thead><tr><th>企画名 / メモ</th><th>担当者</th><th>次回イベント日</th><th>進捗</th><th>操作</th></tr></thead><tbody>${list.map(p=>`<tr><td>${esc(p.title)}<div class="small muted">${esc(p.memo)}</div></td><td>${esc(p.owner)}</td><td>${esc(p.date||'未定')}</td><td>${chip(p.status,p.status==='確認待ち'?'warn':'')}</td><td><div class="table-actions"><button data-edit="${esc(p.id)}">編集</button><button class="ghost danger" data-delete="${esc(p.id)}">削除</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><strong>企画が見つかりません</strong>検索条件を変えるか、新しい企画を追加してください。</div>';}
+const docs=[['運営ガイドライン / 改定案','部門間の相談は全体定例へ。決定事項は議事録に記録し、担当と期限を明確にします。'],['イベント開催チェックリスト','目的・対象・予算・アクセシビリティ・当日の連絡方法を事前に確認しましょう。'],['休会・復帰の手続き','本人の申し出を受け、活動への参加を一時停止します。復帰時期は本人の希望を確認してください。'],['経費申請のルール','支出前に予算を相談し、承認後に購入します。証憑は共有保管場所へ提出してください。']];
+function docList(q=''){const found=docs.filter(d=>d.join('').includes(q));return found.length?found.map(d=>`<details class="doc-row"><summary>${esc(d[0])}</summary><p>${esc(d[1])}</p></details>`).join(''):'<div class="empty"><strong>該当する文書はありません</strong>「イベント」「休会」などで検索してください。</div>';}
+function tasks(){let list=read(page+'.tasks',page==='engineer'?[{id:'t0',title:'モバイルで企画一覧の表示を確認する',done:false},{id:'t1',title:'ポータルの初期画面をレビューする',done:true}]:[]);if(!Array.isArray(list))list=[];return list.length?list.map(t=>`<label class="task ${t.done?'done':''}"><input type="checkbox" data-task="${esc(t.id)}" ${t.done?'checked':''}><span>${esc(t.title)}</span></label>`).join(''):'<div class="empty"><strong>タスクはまだありません</strong>議事録の「タスク化」から、次の行動を追加できます。</div>';}
+function renderPanel(){let html='';const tab=tabs[page][active];
+ if(page==='kikaku')html=`${metrics([['登録されている企画',projects.length],['進行中',projects.filter(p=>p.status==='進行中').length],['確認待ち',projects.filter(p=>p.status==='確認待ち').length]])}<div class="card"><div class="toolbar"><input type="search" id="project-search" placeholder="企画名・担当者・メモを検索" aria-label="企画検索"><button class="primary" data-action="add-project">＋ 企画を追加</button></div><div id="project-list">${projectTable()}</div></div>`;
+ if(page==='policy'){
+ if(active===0)html=`${metrics([['次回定例','11/14'],['持ち寄った議題','3'],['進行中のテーマ','2']])}<div class="content-grid"><div class="card"><div class="section-head"><h2>政策チーム定例</h2>${chip('毎週土曜')}</div><p class="muted small">11月14日（土）20:00–21:00 / オンライン</p>${rows([['今週集まった声の共有','各自のヒアリングから、気づきを1つずつ持ち寄る。','15分'],['通学費負担の論点整理','支援の対象と、調査するデータを決める。','25分'],['次のアクションを確認','調査担当・期限を決めて議事録へ。','20分']])}<button class="primary" data-goto="3">議事録をひらく →</button></div><div class="card note"><h2>定例の前に</h2><p class="small" style="margin-top:15px">賛成・反対だけでなく、「誰の、どんな困りごとか」を一緒に考えましょう。</p><button style="margin-top:20px" data-goto="1">＋ 議題を持ち寄る</button></div></div>`;
+ if(active===1)html=collection('policy.agenda','持ち寄った議題',[['通学費の負担を減らすには','政策担当A / 11月14日の定例で相談','相談'],['学生アンケートの設問レビュー','政策担当B / 回答にかかる時間を短くしたい','確認待ち']]);
+ if(active===2)html=`<div class="card"><h2>テーマごとの進捗</h2>${rows([['通学費支援の調査','情報収集中 → 論点整理 → 提案作成','情報収集中'],['学内の居場所づくり','アンケート案を作成。来週は設問の確認。','論点整理']])}</div>`;
+ if(active===3)html=editor('政策チーム / 定例議事録','policy.memo','■ 共有\n通学費の負担に関する声を集めた。\n\n■ 決定事項\nまずは支援制度の事例を調べる。\n\n■ 次のアクション\n政策担当A：事例を3件調査 / 11月14日まで');
+ }
+ if(page==='engineer'){
+ if(active===0)html=`<div class="content-grid"><div class="card"><span class="tool-icon" style="--accent:#e0edff">⌘</span><h2 style="margin-top:18px">Mirai Tools Portal</h2><p class="small muted" style="margin:10px 0">学生チームの活動をつなぐ、共通の入口。</p>${chip('プロトタイプ')}${rows([['今週のマイルストーン','部門別の主要操作を触れるようにする','進行中'],['レビュー観点','スマホ・キーボード操作・保存の確認','確認']])}<button class="primary" data-goto="2">タスクを確認 →</button></div><div class="card note"><h2>開発メモ</h2><p style="margin-top:15px">小さくつくって、定例で触ってもらう。気づいた点は課題へ残しましょう。</p><button style="margin-top:18px" data-goto="1">課題をひらく</button></div></div>`;
+ if(active===1)html=collection('engineer.issues','課題一覧',[['企画の一覧をスマホでも読みやすくする','優先度：高 / 表の横スクロールを確認','対応中'],['保存失敗時の案内を整える','優先度：中 / 利用者に再試行方法を伝える','未着手']]);
+ if(active===2)html=`<div class="card"><div class="section-head"><h2>開発タスク</h2><button data-action="add-task">＋ タスク追加</button></div><div id="tasks">${tasks()}</div></div>`;
+ if(active===3)html=editor('エンジニア定例 / 議事録','engineer.memo','■ 確認したこと\nポータルの導線と、部門ごとの画面構成。\n\n■ 次回までに\nスマートフォンで操作を確認する。');
+ }
+ if(page==='koho'){
+ const contents=[['今週の活動報告 / 11月第1週','今週は交流会の告知案を作成。来週は画像と本文をレビュー予定です。'],['学生の「やってみたい」を聞く','noteで紹介したい活動や、取材してほしいテーマを募集しています。'],['交流会の告知画像を一緒につくる人','画像のラフを作成できる方を募集。11月14日までに相談したいです。'],['学生チーム通信 / 11月号','各部門の活動を紹介する月次通信。今月は企画と政策チームを特集します。'],['冬の交流会 / 公開告知案','初めての方も参加しやすい交流会を準備中です。詳細は確定後に公開予定。']];
+ const [title,body]=contents[active];const state=read('koho.state.'+active,0);const labels=['下書き','承認待ち','承認済み'];
+ html=`<div class="content-grid"><div class="card"><div class="section-head"><h2>${title}</h2>${chip(labels[state]||labels[0],state===1?'warn':'')}</div><p class="small muted">広報担当A · サンプル原稿 / 実際の公開は行いません</p><div class="flow" aria-label="承認フロー">${labels.map((l,i)=>`<span class="${state===i?'current':''}">${i+1}. ${l}</span>${i<2?' → ':''}`).join('')}</div><label class="f" for="memo">${tab}の内容</label><textarea id="memo" class="editor" ${state>0?'readonly':''}>${esc(read('koho.draft.'+active,body))}</textarea><div class="save-row"><button data-save="koho.draft.${active}" ${state>0?'disabled':''}>下書き保存</button><button class="primary" data-action="approval" ${state===2?'disabled':''}>${state===0?'承認を依頼':state===1?'承認する（デモ）':'承認済み ✓'}</button></div>${state>0?'<button class="ghost" data-action="return-draft" style="margin-top:12px">下書きに戻す</button>':''}</div><div class="card note"><h2>発信前のチェック</h2><p class="small" style="margin-top:16px">□ 日時・場所は正しい？<br>□ 読み手に次の行動が伝わる？<br>□ 写真・引用の確認はできた？</p><p class="small muted" style="margin-top:18px">承認操作は状態の体験用です。通知・投稿・外部公開は行いません。</p></div></div>`;
+ }
+ if(page==='jimu'){
+ if(active===0)html=`<div class="card"><div class="section-head"><h2>必要な文書を探す</h2>${chip('4文書','gray')}</div><input type="search" id="doc-search" placeholder="キーワードで検索（例：イベント）" aria-label="文書検索"><div id="doc-list" style="margin-top:20px">${docList()}</div></div>`;
+ if(active===1)html=`<div class="card"><h2>休会者の確認・通知</h2><p class="small muted" style="margin:12px 0">すべて架空の情報です。通知内容を作成・保存できます。</p>${rows([['サンプルメンバーA / 企画','休会期間：11月1日〜11月30日。復帰予定の確認をお願いします。','確認予定']])}<button class="primary" data-action="notification">通知文を作成</button><p class="small muted" style="margin-top:12px">外部には送信されません。</p></div>`;
+ if(active===2)html=`<div class="card"><h2>運営ルール集</h2>${docList()}</div>`;
+ if(active===3)html=`<div class="card"><h2>よくある質問</h2>${[['定例に参加できないときは？','事前に部門の担当者へ連絡し、議事録で決定事項を確認してください。'],['他部門に相談するには？','相談内容と希望の期限を整理して、全体定例の議題に追加しましょう。'],['この画面のデータは共有されますか？','このブラウザ内のみの保存です。他の端末・メンバーとは同期しません。']].map(d=>`<details class="doc-row"><summary>${d[0]}</summary><p>${d[1]}</p></details>`).join('')}</div>`;
+ }
+ if(page==='yakuin'){
+ if(active===0)html=`<div class="content-grid"><div>${editor('役員会 / 11月の運営振り返り','yakuin.memo','■ 面談で出た声\n新メンバーが相談できる窓口をわかりやすくしたい。\n\n■ 決定事項\n次回オリエンテーションで各部門の相談先を紹介する。\n\n■ 次のアクション\n相談先一覧のたたき台を作る。')}</div><div class="card note"><h2>決定を、行動につなげる</h2><p class="small" style="margin:15px 0">議事録を保存してから、担当や期限を含めたタスクを作成しましょう。</p><button class="primary" data-action="add-task">＋ 決定事項をタスク化</button><button class="ghost" data-goto="1" style="margin-top:10px">作成したタスクを見る →</button><hr><h3>面談メモについて</h3><p class="small muted">プロトタイプには個人情報や実際の面談記録を入力しないでください。</p></div></div>`;
+ if(active===1)html=`<div class="card"><div class="section-head"><h2>役員会のアクション</h2><button class="primary" data-action="add-task">＋ タスク追加</button></div><div id="tasks">${tasks()}</div></div>`;
+ }
+ $('#panel').innerHTML=html;
+}
+function collection(key,title,initial){const extra=read(key,[]);return `<div class="card"><div class="section-head"><h2>${title}</h2><button class="primary" data-collection="${key}">＋ 追加する</button></div>${rows([...initial,...(Array.isArray(extra)?extra:[])])}</div>`;}
+const dialog=$('#modal');let onSubmit=null;
+function modal(title,body,submitLabel='保存する',handler=null){onSubmit=handler;dialog.innerHTML=`<div class="modal-head"><h2 id="modal-title">${title}</h2><button class="icon ghost" data-close aria-label="閉じる">✕</button></div><form id="modal-form">${body}<div class="modal-actions"><button type="button" data-close>閉じる</button>${handler?`<button class="primary" type="submit">${submitLabel}</button>`:''}</div></form>`;dialog.showModal();}
+function field(name,label,value='',type='text',required=true){return `<div class="field"><label for="field-${name}">${label}</label><input id="field-${name}" name="${name}" type="${type}" value="${esc(value)}" ${required?'required':''} maxlength="200"></div>`;}
+function projectModal(id){const p=projects.find(x=>x.id===id)||{};modal(id?'企画を編集':'新しい企画を追加',field('title','企画名',p.title)+`<div class="grid2">${field('owner','担当者',p.owner)}${field('date','次回イベント日',p.date,'date',false)}</div><div class="field"><label for="field-status">進捗</label><select id="field-status" name="status">${['アイデア','進行中','確認待ち','完了'].map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div><div class="field"><label for="field-memo">メモ</label><textarea id="field-memo" name="memo" maxlength="1000">${esc(p.memo||'')}</textarea></div>`,'保存する',data=>{const v={...Object.fromEntries(data),id:id||'p'+Date.now()};if(!v.title.trim()||!v.owner.trim()){toast('企画名と担当者を入力してください',true);return;}const next=id?projects.map(x=>x.id===id?v:x):[...projects,v];if(write('projects',next)){projects=next;dialog.close();renderPanel();toast('企画を保存しました');}});}
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.hasAttribute('data-close')){dialog.close();return;}
+ if(b.dataset.tab!==undefined){const id=++loadId;active=Number(b.dataset.tab);document.querySelectorAll('[role=tab]').forEach((t,i)=>{t.setAttribute('aria-selected',i===active);t.tabIndex=i===active?0:-1;});$('#panel').setAttribute('aria-labelledby','tab-'+active);$('#panel').innerHTML='<div class="loading-panel" role="status"><span class="spinner"></span>表示を準備しています…</div>';setTimeout(()=>{if(id===loadId)renderPanel();},230);return;}
+ if(b.dataset.goto!==undefined){switchTab(Number(b.dataset.goto));return;}
+ if(b.dataset.edit){projectModal(b.dataset.edit);return;}
+ if(b.dataset.delete){const id=b.dataset.delete;const p=projects.find(x=>x.id===id);modal('企画を削除',`<p>「${esc(p.title)}」を削除します。この操作は取り消せません。</p>`,'削除する',()=>{const next=projects.filter(x=>x.id!==id);if(write('projects',next)){projects=next;dialog.close();renderPanel();toast('企画を削除しました');}});return;}
+ if(b.dataset.save){if(write(b.dataset.save,$('#memo').value))toast('メモを保存しました');return;}
+ if(b.dataset.collection){const key=b.dataset.collection;modal('議題・課題を追加',field('title','タイトル')+field('detail','相談内容・担当・期限'),'追加する',data=>{const old=read(key,[]);if(write(key,[...old,[data.get('title'),data.get('detail'),'未着手']])){dialog.close();renderPanel();toast('追加しました');}});return;}
+ const a=b.dataset.action;
+ if(a==='meeting')modal('運営チーム 全体定例',`<p class="small muted">20:00–21:00 / オンライン・サンプル</p>${rows([['部門ごとの進捗共有','各部門から今週の活動と相談事項を共有','20分'],['冬の交流会について','企画案・広報スケジュールを確認','25分'],['次回までのアクション','担当と期限を確認','15分']])}${link('policy','政策の定例・議事録へ →','btn primary')}`);
+ if(a==='add-project')projectModal();
+ if(a==='approval'){const current=read('koho.state.'+active,0);if(write('koho.draft.'+active,$('#memo').value)&&write('koho.state.'+active,Math.min(2,current+1))){renderPanel();toast(current===0?'承認待ちに変更しました（デモ）':'承認しました（デモ）');}}
+ if(a==='return-draft'){if(write('koho.state.'+active,0)){renderPanel();toast('下書きに戻しました');}}
+ if(a==='add-task')modal('次のアクションを追加',field('title','タスク（担当・期限を含めて入力）'),'タスクを追加',data=>{const key=page+'.tasks';const old=read(key,page==='engineer'?[{id:'t0',title:'モバイルで企画一覧の表示を確認する',done:false},{id:'t1',title:'ポータルの初期画面をレビューする',done:true}]:[]);if(write(key,[...old,{id:'t'+Date.now(),title:data.get('title'),done:false}])){dialog.close();renderPanel();toast('タスクを追加しました');}});
+ if(a==='notification')modal('休会確認の通知文',`<div class="field"><label for="notification">通知文（外部には送信されません）</label><textarea id="notification" name="text" rows="6">${esc(read('jimu.notification','運営担当のみなさんへ\nサンプルメンバーAの休会期間は11月30日までの予定です。復帰時のフォロー方法を次回定例で確認してください。'))}</textarea></div>`,'通知文を保存',data=>{if(write('jimu.notification',data.get('text'))){dialog.close();toast('通知文を保存しました。送信はしていません。');}});
+});
+document.addEventListener('submit',e=>{if(e.target.id==='modal-form'){e.preventDefault();if(onSubmit)onSubmit(new FormData(e.target));}});
+document.addEventListener('input',e=>{if(e.target.id==='project-search')$('#project-list').innerHTML=projectTable(e.target.value);if(e.target.id==='doc-search')$('#doc-list').innerHTML=docList(e.target.value);});
+document.addEventListener('change',e=>{if(e.target.dataset.task){const key=page+'.tasks';const list=read(key,page==='engineer'?[{id:'t0',title:'モバイルで企画一覧の表示を確認する',done:false},{id:'t1',title:'ポータルの初期画面をレビューする',done:true}]:[]);const next=list.map(t=>t.id===e.target.dataset.task?{...t,done:e.target.checked}:t);if(write(key,next)){renderPanel();toast('タスクの状態を保存しました');}else e.target.checked=!e.target.checked;}});
+document.addEventListener('keydown',e=>{if(e.target.getAttribute('role')==='tab'&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const n=tabs[page].length;switchTab(e.key==='Home'?0:e.key==='End'?n-1:(active+(e.key==='ArrowRight'?1:-1)+n)%n);}});
+if(page==='index')portal();else tool();
 })();
