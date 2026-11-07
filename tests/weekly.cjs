@@ -1,0 +1,17 @@
+const {JSDOM}=require('jsdom');
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const html=fs.readFileSync('static/index.html','utf8');
+function boot(options={}){const dom=new JSDOM(html,{url:'https://dashboard.test',runScripts:'dangerously',beforeParse(w){w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};if(options.clipboard)Object.defineProperty(w.navigator,'clipboard',{value:{writeText:async t=>{options.clipboard.text=t}}});if(options.stored)w.localStorage.setItem('mirai.dashboard.v1',options.stored)}});return dom}
+(async()=>{const copied={};const dom=boot({clipboard:copied}),w=dom.window,d=w.document;const get=id=>d.getElementById(id);
+assert.equal(d.querySelectorAll('.stat').length,4);assert.equal(d.querySelector('.number').textContent.trim(),'4 件');assert.equal(d.querySelectorAll('.load-row').length,8);assert.match(get('loads').textContent,/未割り当て/);assert.equal(d.querySelectorAll('.meeting').length,4);assert.equal(d.querySelectorAll('.project').length,5);assert.equal(d.querySelectorAll('.meeting .bad').length,1);assert.equal(d.querySelectorAll('.meeting .good').length,1);
+const stored=w.localStorage.getItem('mirai.dashboard.v1');assert.equal(JSON.parse(stored).tasks.length,30);
+const initial=get('week-label').textContent;get('prev').click();assert.notEqual(get('week-label').textContent,initial);get('next').click();assert.equal(get('week-label').textContent,initial);get('next').click();get('next').click();assert.equal(d.querySelectorAll('.meeting').length,0);get('prev').click();get('prev').click();
+const badge=d.querySelector('[data-meeting]');badge.click();assert.equal(badge.getAttribute('aria-expanded'),'true');assert.equal(get(badge.getAttribute('aria-controls')).hidden,false);badge.click();assert.equal(get(badge.getAttribute('aria-controls')).hidden,true);
+const summary=d.querySelector('.project summary');summary.click();assert.equal(summary.parentElement.open,true);summary.click();assert.equal(summary.parentElement.open,false);
+get('export').click();await new Promise(r=>setTimeout(r,0));assert.match(copied.text,/# 政策立案部門 週次レポート/);assert.match(copied.text,/議題が未設定/);assert.match(copied.text,/新入生アンケート/);assert.match(get('toast').textContent,/コピーしました/);
+const reload=boot({stored});assert.equal(reload.window.localStorage.getItem('mirai.dashboard.v1'),stored);reload.window.close();
+const fallback=boot();fallback.window.document.getElementById('export').click();await new Promise(r=>setTimeout(r,0));assert.equal(fallback.window.document.getElementById('copy-dialog').open,true);assert.match(fallback.window.document.getElementById('markdown').value,/## メンバー負荷/);fallback.window.document.getElementById('close-dialog').click();assert.equal(fallback.window.document.getElementById('copy-dialog').open,false);fallback.window.close();
+const invalid=boot({stored:'invalid'});assert.match(invalid.window.document.getElementById('storage-note').textContent,/一時サンプル/);assert.equal(invalid.window.localStorage.getItem('mirai.dashboard.v1'),'invalid');invalid.window.close();
+assert.equal(html,fs.readFileSync('docs/index.html','utf8'));assert.equal(/<script[^>]+src=|<link[^>]+stylesheet/.test(html),false);
+w.close();console.log('PASS: seed, week navigation, empty states, MTG details, PJ cards, clipboard, fallback, persistence, invalid storage, identical standalone files');})().catch(e=>{console.error(e);process.exitCode=1});
