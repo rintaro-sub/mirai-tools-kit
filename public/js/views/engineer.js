@@ -1,0 +1,8 @@
+import { rows, heading, esc, member, members, field, input, options, modal, api, statusSelect, bindStatuses, badge, todayStr, empty, state } from "../app.js";
+export function renderEngineer(el) {
+  const issues = rows("issues", "エンジニア");
+  el.innerHTML = heading("エンジニア", "Issueを整理し、改善を確実にリリースする。") + `<div class="board-tools"><h2>Issue一覧</h2><div class="actions"><button id="release">リリースノート生成</button><button class="primary" id="new-issue">＋ 新規Issue</button></div></div><div class="list">${issues.map((i) => `<article class="list-item"><div><strong>${esc(i.title)}</strong><div class="meta">${badge(`優先度 ${i.priority}`, i.priority === "高")}<span>担当 ${esc(member(i.assignee_id))}</span>${i.labels.map((l) => badge(l)).join("")}</div></div>${statusSelect("issues", i, ["未着手", "進行", "完了"])}</article>`).join("") || empty()}</div>`;
+  bindStatuses(el);
+  el.querySelector("#new-issue").onclick = () => modal("新規Issue", field("タイトル", input("title")) + field("優先度", `<select name="priority">${options(["高", "中", "低"], "中")}</select>`) + field("担当", `<select name="assignee_id">${members(state.me.id)}</select>`) + field("ラベル（カンマ区切り）", input("labels", "text", "改善")), (data) => api("/api/issues", { method: "POST", body: { ...data, labels: data.labels.split(/[,、]/).map((s) => s.trim()).filter(Boolean), dept: "エンジニア", status: "未着手" } }));
+  el.querySelector("#release").onclick = () => { const done = rows("issues", "エンジニア").filter((i) => i.status === "完了"); const markdown = `# リリースノート ${todayStr()}\n\n## 改善・修正\n${done.length ? done.map((i) => `- ${i.title}（${member(i.assignee_id)}）`).join("\n") : "完了Issueはありません。"}`; modal("リリースノート", '<p>Markdownを選択してコピーできます。</p>' + field("Markdown", `<textarea readonly rows="12">${esc(markdown)}</textarea>`)); };
+}

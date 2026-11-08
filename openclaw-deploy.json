@@ -1,0 +1,16 @@
+{
+  "app_id": "mirai-tools-kit",
+  "type": "static",
+  "environment": "production",
+  "domain": "vps.りん.com",
+  "base_path": "/mirai-tools-kit/",
+  "github_repository": "rintaro-sub/mirai-tools-kit",
+  "runtime_profile": "static",
+  "subpath_verified": true,
+  "subpath_evidence": "Verified locally: static/index.html references ./app.css and ./app.js for /mirai-tools-kit/ subpath deployment.",
+  "test_steps": [],
+  "build_steps": [],
+  "output_dir": "static",
+  "spa": false,
+  "github_deploy_repository": null
+}

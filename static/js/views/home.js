@@ -1,0 +1,20 @@
+import { rows, state, DEPTS, slugs, todayStr, addDays, fmtDate, heading, esc, due, badge, taskDetail, api, render, empty } from "../app.js";
+export function renderHome(el) {
+  const today = todayStr();
+  const monday = addDays(today, -((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7));
+  const sunday = addDays(monday, 6);
+  const inWeek = (date) => date && date.slice(0, 10) >= monday && date.slice(0, 10) <= sunday;
+  const tasks = rows("tasks");
+  const meetings = rows("meetings").filter((m) => inWeek(m.date)).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+  const overdue = (task) => task.status !== "完了" && task.due_date && task.due_date < today;
+  const mine = tasks.filter((task) => task.assignee_id === state.me.id && task.status !== "完了").sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const notices = rows("notices").filter((notice) => !notice.read_by.includes(state.me.id));
+  el.innerHTML = heading("今日の運営を、ひとつの画面で。", `${state.me.name}さん、おつかれさまです。${fmtDate(today)} · 今週 ${fmtDate(monday)}〜${fmtDate(sunday)}`) + `
+    <section class="summary" aria-label="今週サマリー">${[["今週のMTG", meetings.length, "予定を確認"], ["今週の完了タスク", tasks.filter((t) => t.status === "完了" && inWeek(t.completed_at)).length, "チームの積み重ね"], ["期限超過タスク", tasks.filter(overdue).length, "優先して確認"], ["自分の未読通知", notices.length, "共有事項をチェック"]].map(([label, count, caption], i) => `<div class="stat ${i === 2 ? "attention" : ""}"><span>${label}</span><strong>${count}<small>件</small></strong><small>${caption}</small></div>`).join("")}</section>
+    <div class="two-col"><section class="section"><div class="section-head"><h2>自分のタスク</h2>${badge(`${mine.length}件`)}</div><div class="list">${mine.map((task) => `<button class="list-item task-open" data-id="${task.id}"><span>${esc(task.title)}<small class="muted">${esc(task.dept)} · 優先度 ${esc(task.priority)}</small></span>${due(task.due_date)}</button>`).join("") || empty("未完了タスクはありません")}</div></section>
+    <section class="section"><div class="section-head"><h2>今週のMTG</h2><span class="muted small">議題・資料・前回宿題</span></div><div class="list">${meetings.map((m) => `<div class="list-item"><strong>${esc(m.title)}</strong><span>${fmtDate(m.date)} ${esc(m.time)}</span><div class="meta">${badge(m.agenda_set ? "議題あり" : "議題未設定", !m.agenda_set)}${badge(m.materials_ready ? "資料準備済" : "資料未準備", !m.materials_ready)}${badge(`宿題 ${m.homework_count}件`, m.homework_count > 0)}</div></div>`).join("") || empty("今週のMTGはありません")}</div></section></div>
+    <section class="section"><div class="section-head"><h2>部門別ステータス</h2><span class="muted small">全部門の現在地</span></div><div class="card-grid">${DEPTS.map((dept, i) => { const own = tasks.filter((t) => t.dept === dept); return `<a href="#/${slugs[i]}" class="card pj-card"><div class="row"><h3>${dept}</h3><span aria-hidden="true">↗</span></div><div class="dept-metrics"><span><strong>${own.filter((t) => t.status !== "完了").length}</strong>未完了タスク</span><span><strong>${rows("projects", dept).filter((p) => p.status === "進行").length}</strong>進行中PJ</span><span class="warn"><strong>${own.filter(overdue).length}</strong>期限超過</span></div></a>`; }).join("")}</div></section>
+    <div class="two-col"><section class="section"><h2>クイックリンク</h2><div class="quick-links">${DEPTS.map((dept, i) => `<a class="button" href="#/${slugs[i]}">${dept}ツール ↗</a>`).join("")}</div></section><section class="section"><h2>通知</h2><div class="list">${notices.map((n) => `<div class="list-item"><span>${esc(n.title)}</span><button class="read-notice" data-id="${n.id}">既読にする</button></div>`).join("") || empty("未読通知はありません")}</div></section></div>`;
+  el.querySelectorAll(".task-open").forEach((button) => { button.onclick = () => taskDetail(button.dataset.id); });
+  el.querySelectorAll(".read-notice").forEach((button) => { button.onclick = async () => { const n = rows("notices").find((r) => r.id === button.dataset.id); try { await api(`/api/notices/${n.id}`, { method: "PATCH", body: { read_by: [...n.read_by, state.me.id] } }); render(); } catch (error) { const { toast } = await import("../app.js"); toast(error.message); } }; });
+}

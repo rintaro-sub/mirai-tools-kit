@@ -1,0 +1,12 @@
+import { rows, esc, heading, field, input, options, modal, api, fmtDate, empty } from "../app.js";
+const templates = { "通知文": "【お知らせ】\n対象：\n日時：\n内容：\n対応期限：\nお問い合わせ：", "議事録": "日時：\n出席者：\n議題：\n決定事項：\n担当・期限：", "企画書": "企画名：\n目的：\n対象：\n実施内容：\nスケジュール：\n予算：\n担当：" };
+export function renderJimu(el) {
+  el.innerHTML = heading("事務局", "必要な文書と手順を、いつでも見つけられる場所に。") + `<div class="board-tools"><label class="search">文書検索<input id="search" type="search" placeholder="タイトル・カテゴリ・本文で検索"></label><button class="primary" id="new-document">＋ 新規文書</button></div><div id="documents"></div><section class="section"><h2>よくある質問</h2>${rows("faqs", "事務局").map((faq) => `<details class="card"><summary>${esc(faq.title)}</summary><p class="pre">${esc(faq.content)}</p></details>`).join("")}</section>`;
+  const show = () => { const q = el.querySelector("#search").value.toLocaleLowerCase(); const documents = rows("documents", "事務局").filter((d) => `${d.title} ${d.category} ${d.content}`.toLocaleLowerCase().includes(q)); el.querySelector("#documents").innerHTML = documents.map((d) => `<details class="card"><summary>${esc(d.title)}</summary><div class="meta">${esc(d.category)} · 最終更新 ${fmtDate(d.updated_at)}</div><p class="pre">${esc(d.content)}</p><button data-edit="${d.id}">編集する</button></details>`).join("") || empty("検索条件に一致する文書はありません"); el.querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => editor(rows("documents").find((d) => d.id === b.dataset.edit)); }); };
+  el.querySelector("#search").oninput = show; show();
+  el.querySelector("#new-document").onclick = () => editor();
+}
+function editor(document = null) {
+  modal(document ? "文書を編集" : "新規文書", field("タイトル", input("title", "text", document?.title || "")) + field("カテゴリ", input("category", "text", document?.category || "運営手順")) + field("雛形", `<select id="template"><option value="">雛形を選択</option>${options(Object.keys(templates))}</select>`) + '<button type="button" id="insert">雛形を本文の末尾に挿入</button>' + field("本文", `<textarea name="content" rows="10" required>${esc(document?.content || "")}</textarea>`), (data) => api(`/api/documents${document ? `/${document.id}` : ""}`, { method: document ? "PATCH" : "POST", body: { ...data, dept: "事務局", status: "公開" } }));
+  const dialog = window.document.querySelector("#dialog"); dialog.querySelector("#insert").onclick = () => { const text = templates[dialog.querySelector("#template").value]; if (text) { const content = dialog.querySelector('[name="content"]'); content.value += `${content.value ? "\n\n" : ""}${text}`; } };
+}
